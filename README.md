@@ -1,4 +1,4 @@
-# Partner Discount API
+# Sahal Service Discount API Documentation
 
 > Simple REST API for partner companies to verify an employee and check discount eligibility.
 
