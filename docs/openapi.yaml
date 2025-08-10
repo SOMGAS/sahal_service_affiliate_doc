@@ -3,7 +3,7 @@ info:
   title: Partner Discount API
   version: 1.0.0
   description: |
-    REST API for partner companies to verify employees and check discount eligibility.
+    REST API for partner companies to verify employees and save loans.
 servers:
   - url: https://api.yourcompany.com
 security:
@@ -33,8 +33,8 @@ paths:
                   properties:
                     mobile:
                       type: string
-                      example: "252617953152"
-                      description: E.164 formatted phone number without '+'
+                      example: "617953152"
+                      description: phone number without '+' and country code
       responses:
         "200":
           description: Found or status determined
@@ -62,11 +62,11 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/RateLimited"
-  /v1/discounts/verify:
+  /v1/employees/somgas-loan:
     post:
-      summary: Verify partner discount eligibility
-      operationId: verifyDiscountEligibility
-      tags: [Discounts]
+      summary: Save Somgas Loan for employee
+      operationId: saveSomgasLoan
+      tags: [Loan]
       security:
         - ApiKeyAuth: []
       requestBody:
@@ -86,11 +86,11 @@ paths:
                   properties:
                     mobile:
                       type: string
-                      example: "252617953152"
-                      description: E.164 formatted phone number without '+'
+                      example: "617953152"
+                      description: formatted phone number without '+' and country code
       responses:
         "200":
-          description: Eligibility evaluated
+          description: Loan saved successfully
           content:
             application/json:
               schema:
@@ -98,22 +98,13 @@ paths:
                 properties:
                   data:
                     type: object
-                    required: [eligible, employeeId, status]
+                    required: [orderId, employeeId, status]
                     properties:
-                      eligible:
-                        type: boolean
-                      level:
-                        type: string
-                        enum: [Standard, Silver, Gold, Platinum]
-                      discountPercent:
-                        type: number
-                        format: float
-                        example: 20
                       employeeId:
                         type: string
                       status:
                         type: string
-                        enum: [Active, Inactive, NotFound]
+                        enum: [Sucess, Failed]
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
