@@ -1,14 +1,14 @@
 # Sahal Service Discount API Documentation
 
-> Simple REST API for partner companies to verify an employee and check discount eligibility.
+> REST API for partner companies to verify employees and save SomGas loan adjustments.
 
-**Base URL (Production)**  
+**Base URL (Production)**
 ```
 https://api.yourcompany.com
 ```
 
-**Authentication**  
-Provide your API key in a header:
+**Authentication**
+Send your API key with every request:
 ```
 X-API-Key: <YOUR_API_KEY>
 ```
@@ -30,13 +30,13 @@ X-API-Key: <YOUR_API_KEY>
 ```
 
 **Request (choose ONE identifier)**
-```json
+```jsonc
 // By employeeId
 { "employeeId": "SO2342" }
 ```
-```json
-// By mobile (E.164)
-{ "mobile": "252617953152" }
+```jsonc
+// By mobile (local number without '+' and country code)
+{ "mobile": "617953152" }
 ```
 
 **Response — 200**
@@ -59,15 +59,18 @@ Where `status` ∈ `["Active","Inactive","NotFound"]`.
 
 **Example**
 ```bash
-curl -X POST https://api.yourcompany.com/v1/employees/check-status   -H "Content-Type: application/json"   -H "X-API-Key: $API_KEY"   -d '{"mobile":"252617953152"}'
+curl -X POST https://api.yourcompany.com/v1/employees/check-status   -H "Content-Type: application/json"   -H "X-API-Key: $API_KEY"   -d '{"mobile":"617953152"}'
 ```
 
 ---
 
-### 2) Verify Discount Eligibility
-**POST** `/v1/discounts/verify`
+### 2) Save SomGas Loan / Adjustment
+**POST** `/v1/employees/somgas-loan`
 
-Validates whether a given employee is eligible for a partner discount.
+Creates an adjustment record (e.g., loan deduction/payment) for an employee.
+
+**Production alias (direct host):**
+`POST https://ccxapi.hormuud.com/api/v1/SaveEmployeeAdjustmentSomGas`
 
 **Headers**
 ```
@@ -77,40 +80,59 @@ X-API-Key: <YOUR_API_KEY>
 
 **Request (choose ONE identifier)**
 ```json
-// By employeeId
-{ "employeeId": "SO2342" }
+{
+  "employeeId": "SO2342",
+  "amount": 13,
+  "actionDate": "2025-08-10",
+  "orderId": "SO23322",
+  "isConfirmed": 1
+}
 ```
+_or_
 ```json
-// By mobile (E.164)
-{ "mobile": "252617953152" }
+{
+  "mobile": "617953152",
+  "amount": 13,
+  "actionDate": "2025-08-10",
+  "orderId": "SO23322",
+  "isConfirmed": 1
+}
 ```
+
+**Field notes**
+- `amount` — number (positive).  
+- `actionDate` — `YYYY-MM-DD`.  
+- `orderId` — unique request reference.  
+- `isConfirmed` — `1` (confirmed) or `0` (pending).
 
 **Response — 200**
 ```json
 {
   "data": {
-    "eligible": true,
-    "level": "Gold",
-    "discountPercent": 20,
+    "status": "Success",
+    "orderId": "SO23322",
     "employeeId": "SO2342",
-    "status": "Active"
+    "processedAt": "2025-08-10T14:22:00Z"
   }
 }
 ```
-Notes:
-- `level` can be `"Standard" | "Silver" | "Gold" | "Platinum"`.
-- `status` mirrors the employee status from **Check Employee Status**.
 
 **Errors**
-- `400 Bad Request` – invalid input (must provide one identifier)
+- `400 Bad Request` – invalid input (e.g., non-positive amount)
 - `401 Unauthorized` – missing/invalid API key
-- `404 Not Found` – no employee matched
-- `409 Conflict` – employee is inactive or suspended (not eligible)
+- `404 Not Found` – employee not found
+- `409 Conflict` – duplicate order or business rule violation (e.g., inactive employee)
 - `429 Too Many Requests` – rate limited
 
 **Example**
 ```bash
-curl -X POST https://api.yourcompany.com/v1/discounts/verify   -H "Content-Type: application/json"   -H "X-API-Key: $API_KEY"   -d '{"employeeId":"SO2342"}'
+curl -X POST https://api.yourcompany.com/v1/employees/somgas-loan   -H "Content-Type: application/json"   -H "X-API-Key: $API_KEY"   -d '{
+        "mobile": "617953152",
+        "amount": 13,
+        "actionDate": "2025-08-10",
+        "orderId": "SO23322",
+        "isConfirmed": 1
+      }'
 ```
 
 ---
@@ -122,10 +144,8 @@ curl -X POST https://api.yourcompany.com/v1/discounts/verify   -H "Content-Type:
 {
   "error": {
     "code": "INVALID_INPUT",
-    "message": "Provide either employeeId or mobile (E.164).",
-    "details": {
-      "field": "mobile"
-    }
+    "message": "Provide either employeeId or mobile.",
+    "details": { "field": "mobile" }
   }
 }
 ```
@@ -143,15 +163,15 @@ Active | Inactive | NotFound
 - `400 Bad Request` — malformed or missing fields
 - `401 Unauthorized` — bad or missing API key
 - `404 Not Found` — resource not found
-- `409 Conflict` — business rule violation (e.g., inactive employee for discount)
+- `409 Conflict` — business rule violation (e.g., inactive employee or duplicate order)
 - `429 Too Many Requests` — throttled
 
 ---
 
 ## Rate Limiting
 
-Default: **60 requests/minute** per API key. Contact support to raise limits.  
-When rate limited, the API returns `429` with headers:
+Default: **60 requests/minute** per API key.
+When rate limited, the API returns `429` and headers:
 ```
 X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After
 ```
@@ -160,10 +180,5 @@ X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After
 
 ## Changelog
 
-- **v1.0.0** — Initial release with two endpoints.
-
----
-
-## OpenAPI
-
-See the bundled [`openapi.yaml`](./openapi.yaml). You can preview it via Redoc at `/docs/` when hosted on GitHub Pages.
+- **v1.0.1** — Added SomGas loan/adjustment fields, success example, and production alias path.
+- **v1.0.0** — Initial release with check-status.
