@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Partner Discount API
+  title: Sahal Service Discount API Documentation
   version: 1.0.0
   description: |
     REST API for partner companies to verify employees and save loans.
