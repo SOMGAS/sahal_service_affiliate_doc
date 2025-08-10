@@ -1,0 +1,180 @@
+openapi: 3.0.3
+info:
+  title: Partner Discount API
+  version: 1.0.0
+  description: |
+    REST API for partner companies to verify employees and check discount eligibility.
+servers:
+  - url: https://api.yourcompany.com
+security:
+  - ApiKeyAuth: []
+paths:
+  /v1/employees/check-status:
+    post:
+      summary: Check employee status by ID or mobile
+      operationId: checkEmployeeStatus
+      tags: [Employees]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [employeeId]
+                  properties:
+                    employeeId:
+                      type: string
+                      example: SO2342
+                - type: object
+                  required: [mobile]
+                  properties:
+                    mobile:
+                      type: string
+                      example: "252617953152"
+                      description: E.164 formatted phone number without '+'
+      responses:
+        "200":
+          description: Found or status determined
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [status, employeeId, name]
+                    properties:
+                      status:
+                        type: string
+                        enum: [Active, Inactive, NotFound]
+                      employeeId:
+                        type: string
+                      name:
+                        type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /v1/discounts/verify:
+    post:
+      summary: Verify partner discount eligibility
+      operationId: verifyDiscountEligibility
+      tags: [Discounts]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [employeeId]
+                  properties:
+                    employeeId:
+                      type: string
+                      example: SO2342
+                - type: object
+                  required: [mobile]
+                  properties:
+                    mobile:
+                      type: string
+                      example: "252617953152"
+                      description: E.164 formatted phone number without '+'
+      responses:
+        "200":
+          description: Eligibility evaluated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [eligible, employeeId, status]
+                    properties:
+                      eligible:
+                        type: boolean
+                      level:
+                        type: string
+                        enum: [Standard, Silver, Gold, Platinum]
+                      discountPercent:
+                        type: number
+                        format: float
+                        example: 20
+                      employeeId:
+                        type: string
+                      status:
+                        type: string
+                        enum: [Active, Inactive, NotFound]
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Business rule violation (e.g., inactive employee cannot get discount)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
