@@ -2,11 +2,11 @@
 <html>
   <head>
     <meta charset="utf-8"/>
-    <title>Sahal Service Discount API Documentation</title>
+    <title>Sahal Service Staff Offer API Documentation</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
       body { margin:0; padding:0; }
-      .topbar { padding: 12px 16px; border-bottom: 1px solid #eee; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; display:flex; gap:12px; align-items:center;}
+      .topbar { padding: 12px 16px; border-bottom: 1px solid #eee; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; display:flex; gap:12px; align-items:center; }
       .topbar a { text-decoration: none; color: inherit; }
       .spacer { flex: 1; }
       .container { height: calc(100vh - 49px); }
@@ -14,14 +14,186 @@
   </head>
   <body>
     <div class="topbar">
-      <strong>Sahal Service Discount API Documentation</strong>
-      <a href="./openapi.yaml">openapi.yaml</a>
+      <strong>Sahal Service Staff Offer API Documentation</strong>
+      <div class="spacer"></div>
+      <!-- Optional: add links to download JSON -->
+      <a id="downloadJson" href="#">download openapi.json</a>
     </div>
     <div id="redoc-container" class="container"></div>
     <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
     <script>
-      // Load the OpenAPI file from the same folder as this HTML
-      Redoc.init('./openapi.yaml', {}, document.getElementById('redoc-container'));
+      // Inline OpenAPI spec (avoids fetching openapi.yaml and fixes `process is not defined` in some setups)
+      const spec = {
+        openapi: "3.0.3",
+        info: {
+          title: "Sahal Service Staff Offer API Documentation",
+          version: "1.0.0",
+          description: "REST API for partner companies to verify employees and save SomGas loan adjustments."
+        },
+        servers: [{ url: "https://api.yourcompany.com" }],
+        security: [{ ApiKeyAuth: [] }],
+        paths: {
+          "/api/v1/employees/status": {
+            post: {
+              summary: "Check Employee Status",
+              description: "Checks whether an employee exists and returns their current status.",
+              operationId: "checkEmployeeStatus",
+              tags: ["Employees"],
+              security: [{ ApiKeyAuth: [] }],
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      required: ["mobile"],
+                      properties: {
+                        mobile: {
+                          type: "string",
+                          example: "617953152",
+                          description: "Local number without '+' and country code"
+                        }
+                      }
+                    },
+                    examples: {
+                      byMobile: {
+                        summary: "Check by local mobile",
+                        value: { mobile: "617953152" }
+                      }
+                    }
+                  }
+                }
+              },
+              responses: {
+                "200": {
+                  description: "Success",
+                  content: {
+                    "application/json": {
+                      schema: {
+                        type: "object",
+                        properties: {
+                          message: { type: "string", example: "Success" },
+                          data: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              required: ["Status", "EmpId", "Name"],
+                              properties: {
+                                Status: { type: "string", enum: ["Active", "Inactive", "Temporary", "NotFound"], example: "Active" },
+                                EmpId: { type: "string", example: "S18289" },
+                                Name: { type: "string", example: "Mohamed Mahad Farah" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "400": { $ref: "#/components/responses/BadRequest" },
+                "401": { $ref: "#/components/responses/Unauthorized" },
+                "404": { $ref: "#/components/responses/NotFound" },
+                "429": { $ref: "#/components/responses/RateLimited" }
+              }
+            }
+          },
+          "/api/v1/employees/debts/confirm": {
+            post: {
+              summary: "Save SomGas Loan / Adjustment",
+              description: "Creates an adjustment record (e.g., loan deduction/payment) for an employee.",
+              operationId: "saveSomgasLoanAdjustment",
+              tags: ["Adjustments"],
+              security: [{ ApiKeyAuth: [] }],
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      required: ["Amount", "Tell", "ActionDate", "OrderId", "Isconfirmed"],
+                      properties: {
+                        Amount: { type: "number", format: "double", description: "Positive amount for charge; negative not allowed", example: 10.35 },
+                        Tell: { type: "string", description: "Local phone number without '+' and country code", example: "615585400" },
+                        ActionDate: { type: "string", format: "date", example: "2025-09-06" },
+                        OrderId: { type: "string", description: "Unique request reference", example: "S174825" },
+                        Isconfirmed: {
+                          description: "Confirmation flag: '1' confirmed, '0' pending",
+                          oneOf: [ { type: "string", enum: ["0", "1"] }, { type: "integer", enum: [0, 1] } ],
+                          example: "1"
+                        }
+                      }
+                    },
+                    examples: {
+                      confirmExample: {
+                        summary: "Confirm a loan/adjustment",
+                        value: { Amount: 10.35, Tell: "615585400", ActionDate: "2025-09-06", OrderId: "S174825", Isconfirmed: "1" }
+                      }
+                    }
+                  }
+                }
+              },
+              responses: {
+                "200": {
+                  description: "Success",
+                  content: {
+                    "application/json": {
+                      schema: {
+                        type: "object",
+                        properties: { message: { type: "string", example: "Success" } }
+                      }
+                    }
+                  }
+                },
+                "400": { $ref: "#/components/responses/BadRequest" },
+                "401": { $ref: "#/components/responses/Unauthorized" },
+                "404": { $ref: "#/components/responses/NotFound" },
+                "409": { description: "Business rule violation (e.g., inactive employee)", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                "429": { $ref: "#/components/responses/RateLimited" }
+              }
+            }
+          }
+        },
+        components: {
+          securitySchemes: {
+            ApiKeyAuth: { type: "apiKey", in: "header", name: "X-API-Key" }
+          },
+          schemas: {
+            ErrorResponse: {
+              type: "object",
+              properties: {
+                error: {
+                  type: "object",
+                  properties: {
+                    code: { type: "string", example: "invalid_request" },
+                    message: { type: "string", example: "Human readable message" },
+                    details: { type: "object", additionalProperties: true }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            BadRequest: { description: "Invalid input", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+            Unauthorized: { description: "Missing or invalid API key", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+            NotFound: { description: "Resource not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+            RateLimited: {
+              description: "Too many requests",
+              headers: { "Retry-After": { schema: { type: "integer" }, description: "Seconds to wait before retrying" } },
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+            }
+          }
+        }
+      };
+
+      // Render ReDoc with inline spec
+      Redoc.init(spec, {}, document.getElementById('redoc-container'));
+
+      // Provide a download link for the JSON spec
+      const blob = new Blob([JSON.stringify(spec, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.getElementById('downloadJson');
+      a.href = url;
+      a.download = 'openapi.json';
     </script>
   </body>
 </html>
